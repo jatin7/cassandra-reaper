@@ -83,6 +83,7 @@ final class SegmentRunner implements RepairStatusHandler, Runnable {
   private static final Logger LOG = LoggerFactory.getLogger(SegmentRunner.class);
 
   private static final int MAX_TIMEOUT_EXTENSIONS = 10;
+  private static final int LOCK_DURATION = 30;
   private static final Pattern REPAIR_UUID_PATTERN
       = Pattern.compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
 
@@ -607,26 +608,29 @@ final class SegmentRunner implements RepairStatusHandler, Runnable {
           LOG.debug("failed to query metrics for host {}, trying to get metrics from storage...", node, e);
         }
       }
-      return nodeDc.equals(localDc)
+
+      return !context.config.getDatacenterAvailability().isInCollocatedMode()
           ? Optional.empty()
           : getRemoteNodeMetrics(node, nodeDc);
     });
   }
 
   private Optional<NodeMetrics> getRemoteNodeMetrics(String node, String nodeDc) {
-    Preconditions.checkState(DatacenterAvailability.ALL != context.config.getDatacenterAvailability());
+    Preconditions.checkState(context.config.getDatacenterAvailability().isInCollocatedMode());
     Preconditions.checkState(context.storage instanceof IDistributedStorage);
     IDistributedStorage storage = ((IDistributedStorage) context.storage);
     Optional<NodeMetrics> result = storage.getNodeMetrics(repairRunner.getRepairRunId(), node);
-    if (!result.isPresent()) {
+    if (!result.isPresent() || result.get().isRequested()) {
       // Sending a request for metrics to the other reaper instances through the Cassandra backend
-      storeNodeMetrics(
-          NodeMetrics.builder()
-              .withCluster(clusterName)
-              .withDatacenter(nodeDc)
-              .withNode(node)
-              .withRequested(true)
-              .build());
+      if (!result.isPresent()) {
+        storeNodeMetrics(
+            NodeMetrics.builder()
+                .withCluster(clusterName)
+                .withDatacenter(nodeDc)
+                .withNode(node)
+                .withRequested(true)
+                .build());
+      }
 
       long start = System.currentTimeMillis();
 
@@ -642,6 +646,7 @@ final class SegmentRunner implements RepairStatusHandler, Runnable {
           // delete the metrics to force other instances to get a refreshed value
           storage.deleteNodeMetrics(repairRunner.getRepairRunId(), node);
         }
+        renewLockSegmentRunners();
       }
     }
     return result;
@@ -655,7 +660,7 @@ final class SegmentRunner implements RepairStatusHandler, Runnable {
 
     Collection<String> nodes = getNodesInvolvedInSegment(dcByNode);
     String dc = EndpointSnitchInfoProxy.create(coordinator).getDataCenter();
-    boolean requireAllHostMetrics = DatacenterAvailability.ALL == context.config.getDatacenterAvailability();
+    boolean requireAllHostMetrics = DatacenterAvailability.LOCAL != context.config.getDatacenterAvailability();
     boolean allLocalDcHostsChecked = true;
     boolean allHostsChecked = true;
     Set<String> unreachableNodes = Sets.newHashSet();
@@ -668,7 +673,7 @@ final class SegmentRunner implements RepairStatusHandler, Runnable {
     for (Pair<String, Future<Optional<NodeMetrics>>> pair : nodeMetricsTasks) {
       try {
         Optional<NodeMetrics> result = pair.getRight().get();
-        if (result.isPresent()) {
+        if (result.isPresent() && !result.get().isRequested()) {
           NodeMetrics metrics = result.get();
           int pendingCompactions = metrics.getPendingCompactions();
           if (pendingCompactions > context.config.getMaxPendingCompactions()) {
@@ -1225,10 +1230,12 @@ final class SegmentRunner implements RepairStatusHandler, Runnable {
   }
 
   private void releaseSegmentRunners() {
-    try (Timer.Context cx
-        = context.metricRegistry.timer(MetricRegistry.name(SegmentRunner.class, "releaseSegmentRunners")).time()) {
-      if (context.storage instanceof IDistributedStorage) {
-        ((IDistributedStorage) context.storage).releaseLead(repairRunner.getRepairRunId());
+    if (!this.repairUnit.getIncrementalRepair()) {
+      try (Timer.Context cx
+          = context.metricRegistry.timer(MetricRegistry.name(SegmentRunner.class, "releaseSegmentRunners")).time()) {
+        if (context.storage instanceof IDistributedStorage) {
+          ((IDistributedStorage) context.storage).releaseLead(repairRunner.getRepairRunId());
+        }
       }
     }
   }

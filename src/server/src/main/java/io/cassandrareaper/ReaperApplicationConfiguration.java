@@ -142,13 +142,13 @@ public final class ReaperApplicationConfiguration extends Configuration {
   private DataSourceFactory relationalDb = new DataSourceFactory();
 
   @JsonProperty
-  private Optional<String> enforcedLocalNode;
+  private Optional<String> enforcedLocalNode = Optional.empty();
 
   @JsonProperty
-  private Optional<String> enforcedLocalClusterName;
+  private Optional<String> enforcedLocalClusterName = Optional.empty();
 
   @JsonProperty
-  private Optional<String> enforcedLocalDatacenter;
+  private Optional<String> enforcedLocalDatacenter = Optional.empty();
 
   public int getSegmentCount() {
     return segmentCount == null ? 0 : segmentCount;

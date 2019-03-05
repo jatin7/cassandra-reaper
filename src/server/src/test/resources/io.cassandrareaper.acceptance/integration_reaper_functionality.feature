@@ -23,7 +23,7 @@ Feature: Using Reaper
     And cluster "test" has keyspace "test_keyspace2" with tables "test_table1, test_table2"
     And cluster "test" has keyspace "test_keyspace3" with tables "test_table1, test_table2"
 
-
+  @sidecar
   Scenario Outline: Registering a cluster
     Given that reaper <version> is running
     And that we are going to use "127.0.0.1@test" as cluster seed host
@@ -36,6 +36,7 @@ Feature: Using Reaper
     Then reaper has no longer the last added cluster in storage
   ${cucumber.upgrade-versions}
 
+  @sidecar
   Scenario Outline: Create a cluster and a scheduled repair run and delete them
     Given that reaper <version> is running
     And that we are going to use "127.0.0.1@test" as cluster seed host
@@ -57,6 +58,7 @@ Feature: Using Reaper
     Then reaper has no longer the last added cluster in storage
   ${cucumber.upgrade-versions}
 
+  @sidecar
   Scenario Outline: Registering multiple scheduled repairs
     Given that reaper <version> is running
     And that we are going to use "127.0.0.1@test" as cluster seed host
@@ -83,6 +85,7 @@ Feature: Using Reaper
     Then reaper has no longer the last added cluster in storage
   ${cucumber.upgrade-versions}
 
+  @sidecar
   @all_nodes_reachable
   Scenario Outline: Adding a scheduled full repair and a scheduled incremental repair for the same keyspace
     Given that reaper <version> is running
@@ -102,6 +105,7 @@ Feature: Using Reaper
     Then reaper has no longer the last added cluster in storage
   ${cucumber.upgrade-versions}
 
+  @sidecar
   Scenario Outline: Create a cluster and a scheduled repair run with repair run history and delete them
     Given that reaper <version> is running
     And that we are going to use "127.0.0.1@test" as cluster seed host
@@ -124,6 +128,7 @@ Feature: Using Reaper
     Then reaper has no longer the last added cluster in storage
   ${cucumber.upgrade-versions}
 
+  @sidecar
   Scenario Outline: Create a cluster and a repair run and delete them
     Given that reaper <version> is running
     And that we are going to use "127.0.0.1@test" as cluster seed host
@@ -149,6 +154,7 @@ Feature: Using Reaper
 
 # Commented out auto twcs blacklist scenario as classloading correctly atm (FIXME), ref: 88d4d5c 
 
+  @sidecar
   @all_nodes_reachable
   Scenario Outline: Create a cluster and an incremental repair run and delete them
     Given that reaper <version> is running
@@ -170,6 +176,7 @@ Feature: Using Reaper
     Then reaper has no longer the last added cluster in storage
   ${cucumber.upgrade-versions}
 
+  @sidecar
   @all_nodes_reachable
   Scenario Outline: Create a cluster and one incremental repair run and one full repair run
     Given that reaper <version> is running

@@ -61,7 +61,7 @@ case "${TEST_TYPE}" in
 
         mvn -B install
 
-        mvn -B surefire:test -DsurefireArgLine="-Xmx512m" -Dtest=ReaperCassandraSidecarIT
+        mvn -B surefire:test -DsurefireArgLine="-Xmx512m" -Dtest=ReaperCassandraSidecarIT -Dgrim.reaper.min=${GRIM_MIN} -Dgrim.reaper.max=${GRIM_MAX} -Dcucumber.options="-t @sidecar"
         ;;
     "upgrade")
         mvn --version -B

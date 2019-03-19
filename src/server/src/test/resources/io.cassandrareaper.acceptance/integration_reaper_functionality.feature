@@ -84,6 +84,7 @@ Feature: Using Reaper
   ${cucumber.upgrade-versions}
 
   @all_nodes_reachable
+  @cassandra_2_1_onwards
   Scenario Outline: Adding a scheduled full repair and a scheduled incremental repair for the same keyspace
     Given that reaper <version> is running
     And that we are going to use "127.0.0.1@test" as cluster seed host
@@ -169,6 +170,7 @@ Feature: Using Reaper
  ${cucumber.upgrade-versions}
 
   @all_nodes_reachable
+  @cassandra_2_1_onwards
   Scenario Outline: Create a cluster and an incremental repair run and delete them
     Given that reaper <version> is running
     And that we are going to use "127.0.0.1@test" as cluster seed host
@@ -190,6 +192,7 @@ Feature: Using Reaper
   ${cucumber.upgrade-versions}
 
   @all_nodes_reachable
+  @cassandra_2_1_onwards
   Scenario Outline: Create a cluster and one incremental repair run and one full repair run
     Given that reaper <version> is running
     And that we are going to use "127.0.0.1@test" as cluster seed host

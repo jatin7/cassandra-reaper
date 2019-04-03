@@ -52,6 +52,7 @@ import java.util.SortedSet;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
@@ -114,6 +115,8 @@ public final class CassandraStorage implements IStorage, IDistributedStorage {
   private static final DateTimeFormatter HOURLY_FORMATTER = DateTimeFormat.forPattern("yyyyMMddHH");
 
   private static final Logger LOG = LoggerFactory.getLogger(CassandraStorage.class);
+
+  private static AtomicBoolean firstAttempt = new AtomicBoolean(true);
 
   private final com.datastax.driver.core.Cluster cassandra;
   private final Session session;
@@ -183,6 +186,11 @@ public final class CassandraStorage implements IStorage, IDistributedStorage {
 
     // https://docs.datastax.com/en/developer/java-driver/3.5/manual/metrics/#metrics-4-compatibility
     cassandraFactory.setJmxEnabled(false);
+    if (!CassandraStorage.firstAttempt.get()) {
+      // If there's been a past connection attempt, metrics are already registered
+      cassandraFactory.setMetricsEnabled(false);
+    }
+    CassandraStorage.firstAttempt.set(false);
 
     cassandra = cassandraFactory.build(environment);
     if (config.getActivateQueryLogger()) {

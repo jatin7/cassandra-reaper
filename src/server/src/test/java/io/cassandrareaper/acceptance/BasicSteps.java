@@ -1636,8 +1636,22 @@ public final class BasicSteps {
 
   private static void createKeyspace(String keyspaceName) {
     try (Cluster cluster = buildCluster(); Session tmpSession = cluster.connect()) {
-      tmpSession.execute("CREATE KEYSPACE IF NOT EXISTS " + keyspaceName
-          + " WITH replication = {" + buildNetworkTopologyStrategyString(cluster) + "}");
+
+      VersionNumber lowestNodeVersion
+          = tmpSession
+              .getCluster()
+              .getMetadata()
+              .getAllHosts()
+              .stream()
+              .map(host -> host.getCassandraVersion())
+              .min(VersionNumber::compareTo)
+              .get();
+
+      tmpSession.execute(
+          "CREATE KEYSPACE "
+              + (VersionNumber.parse("2.0").compareTo(lowestNodeVersion) <= 0 ? "IF NOT EXISTS " : "")
+              + keyspaceName
+            + " WITH replication = {" + buildNetworkTopologyStrategyString(cluster) + "}");
     }
   }
 
@@ -1664,12 +1678,7 @@ public final class BasicSteps {
 
   private static void createTable(String keyspaceName, String tableName) {
     try (Cluster cluster = buildCluster(); Session tmpSession = cluster.connect()) {
-      String createTableStmt
-          = "CREATE TABLE IF NOT EXISTS "
-              + keyspaceName
-              + "."
-              + tableName
-              + "(id int PRIMARY KEY, value text)";
+
       VersionNumber lowestNodeVersion
           = tmpSession
               .getCluster()
@@ -1679,6 +1688,14 @@ public final class BasicSteps {
               .map(host -> host.getCassandraVersion())
               .min(VersionNumber::compareTo)
               .get();
+
+      String createTableStmt
+          = "CREATE TABLE "
+              + (VersionNumber.parse("2.0").compareTo(lowestNodeVersion) <= 0 ? "IF NOT EXISTS " : "")
+              + keyspaceName
+              + "."
+              + tableName
+              + "(id int PRIMARY KEY, value text)";
 
       if (tableName.endsWith("twcs")) {
         if (((VersionNumber.parse("3.0.8").compareTo(lowestNodeVersion) <= 0

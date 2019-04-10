@@ -134,7 +134,7 @@ Feature: Using Reaper
     And reaper has 0 repairs for the last added cluster
     When a new repair is added for the last added cluster and keyspace "booya" with the table "booya2" blacklisted
     And the last added repair has table "booya2" in the blacklist
-    And the last added repair has table "booya_twcs" in the blacklist
+    And the last added repair has twcs table "booya_twcs" in the blacklist
     When reaper is upgraded to latest
     And the last added repair has table "booya2" in the blacklist
     And deleting the last added cluster fails

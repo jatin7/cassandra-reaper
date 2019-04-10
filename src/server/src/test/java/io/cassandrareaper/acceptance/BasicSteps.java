@@ -935,6 +935,8 @@ public final class BasicSteps {
   @And("^the last added repair has twcs table \"([^\"]*)\" in the blacklist$")
   public void the_last_added_repair_has_twcs_table_in_the_blacklist(String twcsTable) throws Throwable {
     synchronized (BasicSteps.class) {
+      final VersionNumber lowestNodeVersion = getCassandraVersion();
+
       RUNNERS
           .parallelStream()
           .forEach(
@@ -945,14 +947,15 @@ public final class BasicSteps {
                 String responseData = response.readEntity(String.class);
                 assertEquals(responseData, Response.Status.OK.getStatusCode(), response.getStatus());
                 List<RepairRunStatus> runs = SimpleReaperClient.parseRepairRunStatusListJSON(responseData);
-                if (reaperVersion.isPresent()
-                    && 0 < VersionNumber.parse("1.4.0").compareTo(VersionNumber.parse(reaperVersion.get()))) {
+                if ((reaperVersion.isPresent()
+                    && 0 < VersionNumber.parse("1.4.0").compareTo(VersionNumber.parse(reaperVersion.get())))
+                    || VersionNumber.parse("2.0").compareTo(lowestNodeVersion) > 0) {
 
                   Assertions
                       .assertThat(runs.get(0).getBlacklistedTables().contains(twcsTable))
                       .isFalse();
                 } else {
-                  // auto TWCS blacklisting was only added in Reaper 1.4.0
+                  // auto TWCS blacklisting was only added in Reaper 1.4.0, and requires Cassandra >= 2.0
                   Assertions
                       .assertThat(runs.get(0).getBlacklistedTables().contains(twcsTable))
                       .isTrue();
@@ -1637,16 +1640,7 @@ public final class BasicSteps {
 
   private static void createKeyspace(String keyspaceName) {
     try (Cluster cluster = buildCluster(); Session tmpSession = cluster.connect()) {
-
-      VersionNumber lowestNodeVersion
-          = tmpSession
-              .getCluster()
-              .getMetadata()
-              .getAllHosts()
-              .stream()
-              .map(host -> host.getCassandraVersion())
-              .min(VersionNumber::compareTo)
-              .get();
+      VersionNumber lowestNodeVersion = getCassandraVersion(tmpSession);
 
       try {
         if (null == tmpSession.getCluster().getMetadata().getKeyspace(keyspaceName)) {
@@ -1681,18 +1675,27 @@ public final class BasicSteps {
         .build();
   }
 
+  private static VersionNumber getCassandraVersion() {
+    try (Cluster cluster = buildCluster(); Session tmpSession = cluster.connect()) {
+      return getCassandraVersion(tmpSession);
+    }
+  }
+
+  private static VersionNumber getCassandraVersion(Session tmpSession) {
+
+    return tmpSession
+            .getCluster()
+            .getMetadata()
+            .getAllHosts()
+            .stream()
+            .map(host -> host.getCassandraVersion())
+            .min(VersionNumber::compareTo)
+            .get();
+  }
+
   private static void createTable(String keyspaceName, String tableName) {
     try (Cluster cluster = buildCluster(); Session tmpSession = cluster.connect()) {
-
-      VersionNumber lowestNodeVersion
-          = tmpSession
-              .getCluster()
-              .getMetadata()
-              .getAllHosts()
-              .stream()
-              .map(host -> host.getCassandraVersion())
-              .min(VersionNumber::compareTo)
-              .get();
+      VersionNumber lowestNodeVersion = getCassandraVersion(tmpSession);
 
       String createTableStmt
           = "CREATE TABLE "

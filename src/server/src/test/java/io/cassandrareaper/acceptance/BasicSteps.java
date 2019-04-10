@@ -49,6 +49,7 @@ import com.datastax.driver.core.Host;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.SocketOptions;
 import com.datastax.driver.core.VersionNumber;
+import com.datastax.driver.core.exceptions.AlreadyExistsException;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -1647,11 +1648,15 @@ public final class BasicSteps {
               .min(VersionNumber::compareTo)
               .get();
 
-      tmpSession.execute(
-          "CREATE KEYSPACE "
-              + (VersionNumber.parse("2.0").compareTo(lowestNodeVersion) <= 0 ? "IF NOT EXISTS " : "")
-              + keyspaceName
-            + " WITH replication = {" + buildNetworkTopologyStrategyString(cluster) + "}");
+      try {
+        if (null == tmpSession.getCluster().getMetadata().getKeyspace(keyspaceName)) {
+          tmpSession.execute(
+              "CREATE KEYSPACE "
+                  + (VersionNumber.parse("2.0").compareTo(lowestNodeVersion) <= 0 ? "IF NOT EXISTS " : "")
+                  + keyspaceName
+                + " WITH replication = {" + buildNetworkTopologyStrategyString(cluster) + "}");
+        }
+      } catch (AlreadyExistsException ignore) { }
     }
   }
 
@@ -1706,13 +1711,16 @@ public final class BasicSteps {
               += " WITH compaction = {'class':'TimeWindowCompactionStrategy',"
                   + "'compaction_window_size': '1', "
                   + "'compaction_window_unit': 'MINUTES'}";
-        } else {
-          createTableStmt
-            += " WITH compaction = {'class':'DateTieredCompactionStrategy'}";
+        } else if (VersionNumber.parse("2.0").compareTo(lowestNodeVersion) <= 0) {
+          createTableStmt += " WITH compaction = {'class':'DateTieredCompactionStrategy'}";
         }
       }
 
-      tmpSession.execute(createTableStmt);
+      try {
+        if (null == tmpSession.getCluster().getMetadata().getKeyspace(keyspaceName).getTable(tableName)) {
+          tmpSession.execute(createTableStmt);
+        }
+      } catch (AlreadyExistsException ignore) { }
 
       for (int i = 0; i < 100; i++) {
         tmpSession.execute(

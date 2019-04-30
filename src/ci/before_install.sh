@@ -23,8 +23,10 @@ sudo apt-get install python-support > /dev/null
 sudo apt-get install python-pip > /dev/null
 sudo apt-get install nodejs > /dev/null
 sudo apt-get install npm > /dev/null
+pip install --upgrade pip
 pip install --user pyyaml > /dev/null
 pip install --user ccm > /dev/null
+#pip install --user ccm==3.1.4 > /dev/null
 npm install -g bower
 
 if [ "${TEST_TYPE}" = "docker" ]
